@@ -4,9 +4,8 @@ import psycopg2
 conn = psycopg2.connect(
 host="localhost",
 port="5432",
-dbname="library",
-user="user1",
-password="1234"
+dbname="library_hana",
+user="postgres"
 )
 
 #1. 메인 메뉴 구조 입니다.
@@ -28,12 +27,15 @@ def print_menu():
 
 #기능1. 도서 조회
 def check_book():
+    book_name = input("도서 이름을 입력하세요:")
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM books;")
+    cursor.execute(f"""SELECT * FROM books WHERE title like '%{book_name}%';""")
     rows = cursor.fetchall()
 
     for row in rows:
         print(row)
+
+    cursor.close()
 
 #3. 콘솔을 통해 사용자가 메뉴를 선택할 수 있는 기능입니다.
 while True:
@@ -44,6 +46,7 @@ while True:
     elif choice in menu:
         print(f"{choice}. {menu[choice]['name']} 서비스를 선택하셨습니다. ")
     elif choice == '5':
+        conn.close()
         print(f"\n서비스를 종료합니다.")
         break
     else:
