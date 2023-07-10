@@ -96,11 +96,16 @@
 ```
 유저가 조회하기 원하는 책 이름을 입력받아서 해당 문장이 포함된 도서 정보를 출력했습니다. 
 
-f"""select*
+쿼리
+f"""select books.* , case when rentals.status is null then '대여 가능' else status end as status
 from books
+left join rentals on books.id = rentals.book_id
 where title like '%{book_name}%';"""
 
-쿼리문 안에 input으로 입력받은 변수값을 넣어주기 위해 { } 를 사용했습니다. 
+- 쿼리문 안에 input으로 입력받은 변수값을 넣어주기 위해 { } 를 사용했습니다. 
+- rentals 테이블과 조인하여 대여 가능 여부도 표기하였습니다. -> 대여 이력이 없을 경우 rentals에 row가 없기 때문에 case when 구문으로 
+대여 가능으로 표기해주었습니다. 
+
 ```
 
 ```

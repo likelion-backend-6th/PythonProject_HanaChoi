@@ -29,7 +29,10 @@ def print_menu():
 def check_book():
     book_name = input("도서 이름을 입력하세요:")
     cursor = conn.cursor()
-    cursor.execute(f"""SELECT * FROM books WHERE title like '%{book_name}%';""")
+    cursor.execute(f"""SELECT books.*, case when rentals.status is null then '대여 가능' else status end as status
+                        FROM books 
+                        LEFT JOIN rentals on books.id= rentals.book_id 
+                        WHERE title like '%{book_name}%';""")
     rows = cursor.fetchall()
 
     for row in rows:
