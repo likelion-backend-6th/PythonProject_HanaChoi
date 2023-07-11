@@ -25,7 +25,85 @@ def print_menu():
         print(f"{id}. {item['name']}")
     print("5. 종료")
 
-#기능1. 도서 조회
+#유저 정보 쿼리
+def user_query(name):
+    cursor = conn.cursor()
+    cursor.execute(f"""SELECT *
+                            FROM users 
+                            WHERE users.name ='{name}';""")
+    rows = cursor.fetchall()
+    return rows
+
+#도서 대여
+def rental_book():
+
+    #book_id, user_id 담을 리스트
+    results = []
+
+    #대여할 책 선택
+    while True:
+        rental_book = int(input("대출하고 싶은 책의 id를 입력하세요:"))
+        cursor = conn.cursor()
+        cursor.execute(f"""SELECT books.*, case when rentals.status is null then '대여 가능' else status end as status
+                            FROM books 
+                            LEFT JOIN rentals on books.id= rentals.book_id 
+                            WHERE books.id ={rental_book};""")
+        rows = cursor.fetchall()
+        if len(rows) == 0:
+            print("아이디가 없습니다.")
+        elif rows[0][4] !='대여 가능':
+            print("해당 도서는 대여중입니다.")
+        elif rows[0][4] =='대여 가능' and len(rows) > 0:
+            print("대여 가능합니다.")
+            results.append(rental_book)
+            break
+
+    #대여하는 사용자명 입력
+    while True:
+        rental_user = input("사용자 이릅을 입력하세요:")
+        rows = user_query(rental_user)
+        if len(rows) == 0:
+            print("사용자가 없습니다.")
+        else:
+            # user_id 추가
+            results.append(rows[0][0])
+            print(rows[0][1], "님으로 대여가 신청되었습니다.")
+            break
+
+    #대여 신청 쿼리 작성
+    cursor.execute(f"""INSERT INTO rentals (book_id, user_id, status) 
+                        VALUES ({results[0]},{results[1]},'대여중')
+                    ;""")
+    conn.commit()
+    cursor.close()
+    # rental_user = (input("사용자 이름을 입력하세요:"))
+    # print(rental_user)
+
+#도서 반납
+def return_book():
+    # 반납하는 사용자명 입력
+    while True:
+        rental_user = input("사용자 이릅을 입력하세요:")
+        rows = user_query(rental_user)
+        if len(rows) == 0:
+            print("사용자가 없습니다.")
+        else:
+            # user_id 추가
+            cursor = conn.cursor()
+            cursor.execute(f"""SELECT *
+                                FROM rentals as r 
+                                LEFT JOIN books as b on r.book_id = b.id 
+                                WHERE r.user_id = {rows[0][0]} and r.status = '대여중';
+            ;""")
+            rows = cursor.fetchall()
+            print("대여한 도서 목록입니다.")
+            for row in rows:
+                print(row)
+
+            cursor.close()
+            break
+
+#도서 조회
 def check_book():
     book_name = input("도서 이름을 입력하세요:")
     cursor = conn.cursor()
@@ -40,12 +118,17 @@ def check_book():
 
     cursor.close()
 
+
 #3. 콘솔을 통해 사용자가 메뉴를 선택할 수 있는 기능입니다.
 while True:
     print_menu()
     choice = input("원하는 서비스를 선택하세요:")
     if choice == '1':
         check_book()
+    elif choice == '2':
+        rental_book()
+    elif choice =='3':
+        return_book()
     elif choice in menu:
         print(f"{choice}. {menu[choice]['name']} 서비스를 선택하셨습니다. ")
     elif choice == '5':
