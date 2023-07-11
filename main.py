@@ -7,6 +7,7 @@ port="5432",
 dbname="library_hana",
 user="postgres"
 )
+cursor = conn.cursor()
 
 #1. 메인 메뉴 구조 입니다.
 menu = {
@@ -26,7 +27,7 @@ def print_menu():
     print("5. 종료")
 #책 정보 쿼리
 def book_query(book_id):
-    cursor = conn.cursor()
+
     cursor.execute(f"""SELECT books.*, case when rentals.status is null then '대여 가능' else status end as status
                                 FROM books 
                                 LEFT JOIN rentals on books.id= rentals.book_id 
@@ -35,13 +36,23 @@ def book_query(book_id):
     return rows
 #유저 정보 쿼리
 def user_query(name):
-    cursor = conn.cursor()
+
     cursor.execute(f"""SELECT *
                             FROM users 
                             WHERE users.name ='{name}';""")
     rows = cursor.fetchall()
     return rows
 
+# 대출 정보 쿼리
+def rental_query(user_name, where_str):
+
+    cursor.execute(f"""SELECT r.id, b.title, b.author, b.publisher, r.rental_at, u.name
+                        FROM rentals as r 
+                        INNER JOIN users as u on r.user_id = u.id and u.name = '{user_name}'
+                        INNER JOIN books as b on r.book_id = b.id 
+                        {where_str};""")
+    rows = cursor.fetchall()
+    return rows
 #도서 대여
 def rental_book():
 
@@ -74,18 +85,15 @@ def rental_book():
             break
 
     #대여 신청 쿼리 작성
-    cursor = conn.cursor()
+
     cursor.execute(f"""INSERT INTO rentals (book_id, user_id, status) 
                         VALUES ({results[0]},{results[1]},'대여중')
                     ;""")
     conn.commit()
-    cursor.close()
-    # rental_user = (input("사용자 이름을 입력하세요:"))
-    # print(rental_user)
 
 #도서 반납
 def return_book():
-    cursor = conn.cursor()
+
     books = []
     # 반납하는 사용자명 입력
     while True:
@@ -95,19 +103,19 @@ def return_book():
             print("사용자가 없습니다.")
         else:
             # user_id 추가
-
-            cursor.execute(f"""SELECT r.id, b.title, b.author, b.publisher, r.rental_at
-                                FROM rentals as r 
-                                LEFT JOIN books as b on r.book_id = b.id 
-                                WHERE r.user_id = {rows[0][0]} and r.status = '대여중';""")
-            rows = cursor.fetchall()
-            print("대여한 도서 목록입니다.")
-            for row in rows:
-                print("대여 id:", row[0], " / 책 이름:", row[1], " / 책 저자:" , row[2], " / 대여 일자: ", row[4])
+            rental_rows = rental_query(rental_user,"WHERE r.status='대여중'")
+            print(rental_rows[0][5],"님의 대여한 도서 목록입니다.")
+            for row in rental_rows:
+                print("대여 id:", row[0],
+                      " / 책 이름:", row[1],
+                      " / 책 저자:" , row[2],
+                      " / 대여 일자:", row[4])
                 books.append(row[0])
             break
     while True:
-        return_id = int(input("반납할 도서의 id를 입력하세요: "))
+        return_id = int(input("반납할 도서의 id를 입력하세요 (반납을 원치 않을 경우 숫자 0 을 입력해주세요): "))
+        if return_id == 0 :
+            break
         if return_id in books:
             cursor.execute(f"""UPDATE rentals 
                                 SET 
@@ -120,13 +128,12 @@ def return_book():
         else:
             print("해당 도서가 대여목록에 없습니다.")
 
-    cursor.close()
+
 
 
 #도서 조회
 def check_book():
     book_name = input("도서 이름을 입력하세요:")
-    cursor = conn.cursor()
     cursor.execute(f"""SELECT books.*, case when rentals.status is null then '대여 가능' else status end as status
                         FROM books 
                         LEFT JOIN rentals on books.id= rentals.book_id 
@@ -136,7 +143,16 @@ def check_book():
     for row in rows:
         print(row)
 
-    cursor.close()
+# 대출 정보 조회
+def check_rental():
+    user_name = input("대출 정보 조회할 사용자 이름을 입력하세요:")
+
+    rows = rental_query(user_name," ")
+    for row in rows:
+        print("대여 id:", row[0], " / 책 이름:", row[1], " / 책 저자:", row[2], " / 대여 일자: ", row[4])
+
+
+
 
 
 #3. 콘솔을 통해 사용자가 메뉴를 선택할 수 있는 기능입니다.
@@ -149,11 +165,13 @@ while True:
         rental_book()
     elif choice =='3':
         return_book()
-    elif choice in menu:
-        print(f"{choice}. {menu[choice]['name']} 서비스를 선택하셨습니다. ")
+    elif choice =='4':
+        check_rental()
     elif choice == '5':
+        cursor.close()
         conn.close()
         print(f"\n서비스를 종료합니다.")
         break
     else:
         print("\n 잘못된 선택입니다. 다시 선택해주세요. ")
+
