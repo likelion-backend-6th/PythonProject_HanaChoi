@@ -122,14 +122,18 @@ def return_book():
 
             user_id = rows[0][0]
             rental_rows = rental_query(rental_user,"WHERE r.status='대여중'")
-            print(rental_rows[0][5],"님의 대여중인 도서 목록입니다.")
-            for row in rental_rows:
-                print("책 ID:", row[6],
+            if len(rental_rows) == 0:
+                print("대여중인 도서가 없습니다.")
+                return ''
+            else:
+                print(rental_rows[0][5],"님의 대여중인 도서 목록입니다.")
+                for row in rental_rows:
+                    print("책 ID:", row[6],
                       " / 책 이름:", row[1],
                       " / 책 저자:" , row[2],
                       " / 대여 일자:", row[4])
-                books.append(row[6])
-            break
+                    books.append(row[6])
+
     while True:
         book_id = int(input("반납할 도서의 id를 입력하세요 (숫자 0 입력시 종료): "))
         if book_id == 0:
