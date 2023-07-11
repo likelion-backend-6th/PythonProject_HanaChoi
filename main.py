@@ -24,7 +24,15 @@ def print_menu():
     for id, item in menu.items():
         print(f"{id}. {item['name']}")
     print("5. 종료")
-
+#책 정보 쿼리
+def book_query(book_id):
+    cursor = conn.cursor()
+    cursor.execute(f"""SELECT books.*, case when rentals.status is null then '대여 가능' else status end as status
+                                FROM books 
+                                LEFT JOIN rentals on books.id= rentals.book_id 
+                                WHERE books.id ={book_id};""")
+    rows = cursor.fetchall()
+    return rows
 #유저 정보 쿼리
 def user_query(name):
     cursor = conn.cursor()
@@ -43,12 +51,7 @@ def rental_book():
     #대여할 책 선택
     while True:
         rental_book = int(input("대출하고 싶은 책의 id를 입력하세요:"))
-        cursor = conn.cursor()
-        cursor.execute(f"""SELECT books.*, case when rentals.status is null then '대여 가능' else status end as status
-                            FROM books 
-                            LEFT JOIN rentals on books.id= rentals.book_id 
-                            WHERE books.id ={rental_book};""")
-        rows = cursor.fetchall()
+        rows = book_query(rental_book)
         if len(rows) == 0:
             print("아이디가 없습니다.")
         elif rows[0][4] !='대여 가능':
@@ -71,6 +74,7 @@ def rental_book():
             break
 
     #대여 신청 쿼리 작성
+    cursor = conn.cursor()
     cursor.execute(f"""INSERT INTO rentals (book_id, user_id, status) 
                         VALUES ({results[0]},{results[1]},'대여중')
                     ;""")
@@ -81,6 +85,8 @@ def rental_book():
 
 #도서 반납
 def return_book():
+    cursor = conn.cursor()
+    books = []
     # 반납하는 사용자명 입력
     while True:
         rental_user = input("사용자 이릅을 입력하세요:")
@@ -89,19 +95,33 @@ def return_book():
             print("사용자가 없습니다.")
         else:
             # user_id 추가
-            cursor = conn.cursor()
-            cursor.execute(f"""SELECT *
+
+            cursor.execute(f"""SELECT r.id, b.title, b.author, b.publisher, r.rental_at
                                 FROM rentals as r 
                                 LEFT JOIN books as b on r.book_id = b.id 
-                                WHERE r.user_id = {rows[0][0]} and r.status = '대여중';
-            ;""")
+                                WHERE r.user_id = {rows[0][0]} and r.status = '대여중';""")
             rows = cursor.fetchall()
             print("대여한 도서 목록입니다.")
             for row in rows:
-                print(row)
-
-            cursor.close()
+                print("대여 id:", row[0], " / 책 이름:", row[1], " / 책 저자:" , row[2], " / 대여 일자: ", row[4])
+                books.append(row[0])
             break
+    while True:
+        return_id = int(input("반납할 도서의 id를 입력하세요: "))
+        if return_id in books:
+            cursor.execute(f"""UPDATE rentals 
+                                SET 
+                                  return_at = now(), 
+                                   status = '대여 가능'
+                                WHERE 
+                                    id = {return_id};""")
+            conn.commit()
+            break
+        else:
+            print("해당 도서가 대여목록에 없습니다.")
+
+    cursor.close()
+
 
 #도서 조회
 def check_book():
